@@ -124,17 +124,13 @@ func (c *core) handlePreprepare(msg *istanbul.Message) error {
 		return err
 	}
 
-	if c.state == StateAcceptRequest {
+	if c.current.State() == StateAcceptRequest {
 		logger.Trace("Accepted preprepare", "tag", "stateTransition")
-		c.acceptPreprepare(preprepare)
-		c.setState(StatePreprepared)
+		c.consensusTimestamp = time.Now()
+
+		c.current.TransitionToPreprepared(preprepare)
 		c.sendPrepare()
 	}
 
 	return nil
-}
-
-func (c *core) acceptPreprepare(preprepare *istanbul.Preprepare) {
-	c.consensusTimestamp = time.Now()
-	c.current.SetPreprepare(preprepare)
 }
