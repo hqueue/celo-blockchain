@@ -22,10 +22,13 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
+
+var uptimeKey = []byte("uptime")
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block number.
 func ReadCanonicalHash(db DatabaseReader, number uint64) common.Hash {
@@ -251,6 +254,39 @@ func ReadTd(db DatabaseReader, hash common.Hash, number uint64) *big.Int {
 		return nil
 	}
 	return td
+}
+
+// ReadAccumulatedUptime retrieves the so-far accumulated uptime array for the validators of the most recent epoch
+func ReadAccumulatedUptime(db DatabaseReader) []istanbul.Uptime {
+	data, _ := db.Get(uptimeKey)
+	if len(data) == 0 {
+		return nil
+	}
+	uptime := new([]istanbul.Uptime)
+	if err := rlp.Decode(bytes.NewReader(data), uptime); err != nil {
+		log.Error("Invalid uptime RLP", "err", err)
+		return nil
+	}
+
+	return *uptime
+}
+
+// WriteAccumulatedUptime updates the accumulated uptime array for the validators of the most recent epoch
+func WriteAccumulatedUptime(db DatabaseWriter, uptime []istanbul.Uptime) {
+	data, err := rlp.EncodeToBytes(uptime)
+	if err != nil {
+		log.Crit("Failed to RLP encode updated uptime", "err", err)
+	}
+	if err := db.Put(uptimeKey, data); err != nil {
+		log.Crit("Failed to store updated uptime", "err", err)
+	}
+}
+
+// DeleteAccumulatedUptime removes all block total difficulty data associated with a hash.
+func DeleteAccumulatedUptime(db DatabaseDeleter) {
+	if err := db.Delete(uptimeKey); err != nil {
+		log.Crit("Failed to delete block total difficulty", "err", err)
+	}
 }
 
 // WriteTd stores the total difficulty of a block into the database.
