@@ -17,10 +17,10 @@
 package backend
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/contract_comm"
 	"github.com/ethereum/go-ethereum/contract_comm/currency"
@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/contract_comm/gold_token"
 	"github.com/ethereum/go-ethereum/contract_comm/validators"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -78,17 +79,31 @@ func (sb *Backend) distributeEpochPaymentsAndRewards(header *types.Header, state
 }
 
 func (sb *Backend) updateValidatorScores(header *types.Header, state *state.StateDB, valSet []istanbul.Validator) error {
-	for _, val := range valSet {
-		// TODO: Use actual uptime metric.
-		// 1.0 in fixidity
-		uptime := math.BigPow(10, 24)
-		sb.logger.Info("Updating validator score for address", "address", val.Address(), "uptime", uptime.String())
-		err := validators.UpdateValidatorScore(header, state, val.Address(), uptime)
+	for i, val := range valSet {
+		uptime, err := sb.getUptime(i)
+		if err != nil {
+			return err
+		}
+		sb.logger.Info("Updating validator score for address", "address", val.Address(), "uptime", uptime)
+		err = validators.UpdateValidatorScore(header, state, val.Address(), big.NewInt(int64(uptime)))
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (sb *Backend) getUptime(validatorIndex int) (uint64, error) {
+	uptimes := rawdb.ReadAccumulatedUptime(sb.db)
+	if uptimes == nil {
+		return 0, errors.New("Invalid accumulated uptime")
+	}
+
+	// the uptimes array is aligned with the validator set
+	validatorUptime := uptimes[validatorIndex].Score / (sb.EpochSize() - sb.LookbackWindow() + 1)
+
+	// normalize this by dividing with the epoch length and window size
+	return validatorUptime, nil
 }
 
 func (sb *Backend) distributeEpochPayments(header *types.Header, state *state.StateDB, valSet []istanbul.Validator, maxPayment *big.Int) (*big.Int, error) {
