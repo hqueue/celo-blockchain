@@ -99,7 +99,7 @@ func GetValidatorData(header *types.Header, state vm.StateDB, validatorAddresses
 			PublicKeysData []byte
 			Affiliation    common.Address
 		}{}
-		_, err := contract_comm.MakeStaticCall(params.ValidatorsRegistryId, validatorsABI, "getValidator", []interface{}{addr}, &validator, params.MaxGasForGetValidator, header, state)
+		_, err := contract_comm.MakeStaticCall(params.ValidatorsRegistryId, validatorsABI, "getValidator", []interface{}{addr}, &validator, params.MaxGasForGetValidator, header, state) // TODO-issue-631
 		if err != nil {
 			return nil, err
 		}

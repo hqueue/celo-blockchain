@@ -395,9 +395,9 @@ func (sb *Backend) UpdateValSetDiff(chain consensus.ChainReader, header *types.H
 	// If this is the last block of the epoch, then get the validator set diff, to save into the header
 	log.Trace("Called UpdateValSetDiff", "number", header.Number.Uint64(), "epoch", sb.config.Epoch)
 	if istanbul.IsLastBlockOfEpoch(header.Number.Uint64(), sb.config.Epoch) {
-		newValSet, err := sb.getNewValidatorSet(header, state)
+		newValSet, err := sb.getNewValidatorSet(header, state) // TODO-issue-631
 		if err != nil {
-			log.Error("Istanbul.Finalize - Error in retrieving the validator set. Using the previous epoch's validator set", "err", err)
+			log.Error("Istanbul.Finalize - Error in retrieving the validator set. Using the previous epoch's validator set", "err", err) // TODO-issue-631
 		} else {
 			// Get the last epoch's validator set
 			snap, err := sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, nil)

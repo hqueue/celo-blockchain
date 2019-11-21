@@ -373,11 +373,11 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 }
 
 func (sb *Backend) getNewValidatorSet(header *types.Header, state *state.StateDB) ([]istanbul.ValidatorData, error) {
-	newValSetAddresses, err := election.GetElectedValidators(header, state)
+	newValSetAddresses, err := election.GetElectedValidators(header, state) // TODO-issue-631
 	if err != nil {
 		return nil, err
 	}
-	newValSet, err := validators.GetValidatorData(header, state, newValSetAddresses)
+	newValSet, err := validators.GetValidatorData(header, state, newValSetAddresses) // TODO-issue-631
 	return newValSet, err
 }
 
