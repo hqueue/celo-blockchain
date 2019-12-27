@@ -1,0 +1,25 @@
+# This image builds geth of celo-blockchain from mounted volume /go-ethereum
+#
+# docker pull hqueue/celo-builder
+# cd <celo-blockchain>
+# docker run -v `pwd`:/go-ethereum hqueue/celo-builder
+FROM ubuntu:16.04 as rustbuilder
+MAINTAINER Hyung-Kyu Choi hyungkyu.choi@gmail.com
+
+RUN apt update && apt install -y curl musl-tools
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+RUN $HOME/.cargo/bin/rustup install 1.37.0 && $HOME/.cargo/bin/rustup default 1.37.0 && $HOME/.cargo/bin/rustup target add x86_64-unknown-linux-musl
+ADD ./vendor /go-ethereum/vendor
+RUN cd /go-ethereum/vendor/github.com/celo-org/bls-zexe/bls && $HOME/.cargo/bin/cargo build --target x86_64-unknown-linux-musl --release
+
+# Build Geth in a stock Go builder container
+FROM golang:1.11-alpine
+MAINTAINER Hyung-Kyu Choi hyungkyu.choi@gmail.com
+
+RUN apk add --no-cache make gcc musl-dev linux-headers git
+RUN mkdir -p /rustbuilder
+COPY --from=rustbuilder /go-ethereum/vendor/github.com/celo-org/bls-zexe/bls/target/x86_64-unknown-linux-musl/release/libbls_zexe.a /rustbuilder
+COPY --from=rustbuilder /go-ethereum/vendor/github.com/celo-org/bls-zexe/bls/target/x86_64-unknown-linux-musl/release/libbls_snark.a /rustbuilder
+
+# copy above libraries to /go-ethereum/vendor/github.com/celo-org/bls-zexe/bls/target/release
+ENTRYPOINT cp /rustbuilder/*.a /go-ethereum/vendor/github.com/celo-org/bls-zexe/bls/target/release && cd /go-ethereum && make geth
